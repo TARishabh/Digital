@@ -27,6 +27,7 @@ public class CircuitScrollPanel extends JPanel {
     private final JScrollBar vertical;
     private GraphicMinMax graphicMinMax;
     private AffineTransform transform;
+    private boolean updatingBars;
 
     /**
      * Creates a new instance
@@ -44,11 +45,11 @@ public class CircuitScrollPanel extends JPanel {
         add(vertical, BorderLayout.EAST);
 
         horizontal.addAdjustmentListener(adjustmentEvent -> {
-            if (adjustmentEvent.getValueIsAdjusting() && transform != null)
+            if (!updatingBars && transform != null)
                 circuitComponent.translateCircuitToX(-adjustmentEvent.getValue() * transform.getScaleX());
         });
         vertical.addAdjustmentListener(adjustmentEvent -> {
-            if (adjustmentEvent.getValueIsAdjusting() && transform != null)
+            if (!updatingBars && transform != null)
                 circuitComponent.translateCircuitToY(-adjustmentEvent.getValue() * transform.getScaleY());
         });
 
@@ -90,15 +91,14 @@ public class CircuitScrollPanel extends JPanel {
     private void updateBars() {
         GraphicMinMax gr = getCircuitSize();
 
-        if (gr.getMin() == null || gr.getMax() == null || !circuitComponent.isManualScale()) {
-            horizontal.setVisible(false);
-            vertical.setVisible(false);
-        } else {
+        if (gr.getMin() != null && gr.getMax() != null && transform != null) {
             Point2D min = new Point2D.Float();
             Point2D max = new Point2D.Float();
             try {
+                // Use the circuit canvas size, not this panel (which includes the bars).
                 transform.inverseTransform(new Point2D.Float(0, 0), min);
-                transform.inverseTransform(new Point2D.Float(getWidth(), getHeight()), max);
+                transform.inverseTransform(
+                        new Point2D.Float(circuitComponent.getWidth(), circuitComponent.getHeight()), max);
                 setValues(horizontal, min.getX(), max.getX(), gr.getMin().x, gr.getMax().x);
                 setValues(vertical, min.getY(), max.getY(), gr.getMin().y, gr.getMax().y);
             } catch (NoninvertibleTransformException e) {
@@ -106,6 +106,8 @@ public class CircuitScrollPanel extends JPanel {
                 e.printStackTrace();
             }
         }
+        horizontal.setVisible(true);
+        vertical.setVisible(true);
     }
 
     private void setValues(JScrollBar bar, double viewMin, double viewMax, int circuitMin, int circuitMax) {
@@ -113,8 +115,12 @@ public class CircuitScrollPanel extends JPanel {
         circuitMin -= border;
         circuitMax += border;
         int extent = (int) (viewMax - viewMin);
-        bar.setValues((int) viewMin, extent, circuitMin, circuitMax);
-        bar.setVisible(viewMin > circuitMin || viewMax < circuitMax);
+        updatingBars = true;
+        try {
+            bar.setValues((int) viewMin, extent, circuitMin, circuitMax);
+        } finally {
+            updatingBars = false;
+        }
     }
 
     /**

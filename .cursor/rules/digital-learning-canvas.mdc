@@ -1,0 +1,32 @@
+---
+description: Minimal Digital fork constraints for text annotation + find-pan UX. Do not implement unless explicitly requested.
+alwaysApply: true
+---
+
+# Digital learning-canvas fork
+
+Minimal fork of hneemann/Digital: small learning-whiteboard UX on the existing circuit editor. **Not** a redesign or new editor.
+
+This rule encodes constraints only. **Do not implement until explicitly asked.**
+
+## Required features
+
+1. **Double-click empty canvas** — create existing Text decoration (`DummyElement.TEXTDESCRIPTION` / `"Text"`) at circuit position; open existing `editAttributes` / AttributeDialog; persist via normal `.dig` save.
+2. **Double-click existing Text** — open the same edit mechanism.
+3. **Search** — keep Ctrl+F / `Circuit.findElements()`; Text stays searchable via `Keys.DESCRIPTION`; on match, pan so the element is visible/near viewport center. No new search UI, index, or database.
+4. **Preserve behavior** — simulation, components, wires, selection, drag, zoom, pan unchanged. Single primary click on empty canvas must still start wire drawing. Handle double-click so the first click does not leave an incorrect wire-drawing state.
+
+## Architecture (reuse only)
+
+- Reuse: Text decoration, `Keys.DESCRIPTION`, `VisualElement`, `ModifyInsertElement`, `editAttributes` / AttributeDialog, `Circuit.findElements()`, existing canvas transform for centering.
+- Do **not**: new annotation type, new file format, `.dig` schema / XStream changes, database, server, collaboration, or AI.
+
+## Scope
+
+Smallest change. Primary files: `CircuitComponent.java`, `Main.java`. Touch other files only if required.
+
+Do **not** modify: simulation/model, component implementations, zoom/pan architecture, infinite-canvas behavior, pages, unrelated UI.
+
+## Discipline
+
+Before edits: understand the existing path; reuse helpers; no duplication. After: compile, run relevant tests, add only small focused tests, report files changed and why. No unrelated refactors.

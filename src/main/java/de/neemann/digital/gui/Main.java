@@ -929,6 +929,8 @@ public final class Main extends JFrame implements ClosingWindowListener.ConfirmS
                     ArrayList<VisualElement> found = getCircuitComponent().getCircuit().findElements(search);
                     getCircuitComponent().removeHighLighted();
                     getCircuitComponent().addHighLighted(found);
+                    if (!found.isEmpty())
+                        getCircuitComponent().centerOn(found.get(0));
                 }
             }
         }.setAcceleratorCTRLplus('F').enableAcceleratorIn(getCircuitComponent()).setToolTip(Lang.get("menu_find_tt"));

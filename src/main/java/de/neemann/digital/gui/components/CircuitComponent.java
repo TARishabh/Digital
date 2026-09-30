@@ -113,6 +113,7 @@ public class CircuitComponent extends JComponent implements ChangedListener, Lib
 
     private final Main parent;
     private final ElementLibrary library;
+    private final ShapeFactory shapeFactory;
     private final HashSet<Drawable> highLighted;
     private final ToolTipAction deleteAction;
     private final MouseController mouseNormal;
@@ -167,6 +168,7 @@ public class CircuitComponent extends JComponent implements ChangedListener, Lib
     public CircuitComponent(Main parent, ElementLibrary library, ShapeFactory shapeFactory) {
         this.parent = parent;
         this.library = library;
+        this.shapeFactory = shapeFactory;
         highLighted = new HashSet<>();
 
         rotateAction = new ToolTipAction(Lang.get("menu_rotate")) {
@@ -1183,6 +1185,30 @@ public class CircuitComponent extends JComponent implements ChangedListener, Lib
     }
 
     /**
+     * Pans so the element is near the viewport center without changing zoom.
+     *
+     * @param element the element to center on
+     */
+    public void centerOn(VisualElement element) {
+        if (element == null || getWidth() == 0 || getHeight() == 0)
+            return;
+        GraphicMinMax mm = element.getMinMax(true);
+        Vector target = (mm.getMin() != null && mm.getMax() != null)
+                ? mm.getMin().add(mm.getMax()).div(2) : element.getPos();
+        Vector delta = getPosVector(getWidth() / 2, getHeight() / 2).sub(target);
+        translateCircuit(delta.x, delta.y);
+    }
+
+    private void createAndEditTextAt(Vector pos, MouseEvent e) {
+        parent.ensureModelIsStopped();
+        VisualElement text = new VisualElement(DummyElement.TEXTDESCRIPTION.getName())
+                .setShapeFactory(shapeFactory)
+                .setPos(raster(pos));
+        modify(new ModifyInsertElement(text));
+        editAttributes(text, e);
+    }
+
+    /**
      * Translates the circuit.
      *
      * @param x x position
@@ -1638,7 +1664,8 @@ public class CircuitComponent extends JComponent implements ChangedListener, Lib
         @Override
         public void mouseReleased(MouseEvent e) {
             activeMouseController.released(e);
-            if (!(wasMoved(e) || isMoved))
+            // Keep double-click clicked() even if the pointer moved slightly.
+            if (!(wasMoved(e) || isMoved) || e.getClickCount() >= 2)
                 activeMouseController.clicked(e);
         }
 
@@ -2011,6 +2038,13 @@ public class CircuitComponent extends JComponent implements ChangedListener, Lib
 
         @Override
         void clicked(MouseEvent e) {
+            if (e.getClickCount() >= 2 && mouse.isPrimaryClick(e)
+                    && originalVisualElement.equalsDescription(DummyElement.TEXTDESCRIPTION)) {
+                mouseNormal.activate();
+                if (!isLocked())
+                    editAttributes(originalVisualElement, e);
+                return;
+            }
             if (!isLocked()) {
                 visualElement.setPos(visualElement.getPos());
                 if (!visualElement.getPos().equals(originalVisualElement.getPos())
@@ -2234,6 +2268,13 @@ public class CircuitComponent extends JComponent implements ChangedListener, Lib
 
         @Override
         void clicked(MouseEvent e) {
+            if (e.getClickCount() >= 2 && mouse.isPrimaryClick(e)) {
+                Vector pos = getPosVector(e);
+                mouseNormal.activate();
+                if (!isLocked())
+                    createAndEditTextAt(pos, e);
+                return;
+            }
             if (mouse.isClickModifier(e)) {
                 Vector pos = raster(getPosVector(e));
                 Wire wire = getCircuit().getWireAt(pos, SIZE2);
